@@ -11,3 +11,4 @@ python-jose[cryptography]
 passlib[bcrypt]
 aiosqlite
 aiohttp
+Flask==2.0.1
