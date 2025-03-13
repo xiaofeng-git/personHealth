@@ -9,4 +9,5 @@ sqlalchemy>=1.4.0
 openai>=1.0.0
 python-jose[cryptography]
 passlib[bcrypt]
-aiosqlite 
+aiosqlite
+aiohttp
