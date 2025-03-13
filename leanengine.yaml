@@ -1,2 +1,2 @@
-runtime: python-3.10.9
+runtime: python 3.10.9
 run: python main.py
