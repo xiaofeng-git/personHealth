@@ -797,4 +797,13 @@ async def get_ai_api_status(db: Session = Depends(get_db)):
         return {
             "success": False,
             "error": "获取使用状态失败"
-        } 
+        }
+# 处理根路径请求
+@router.get("/")
+def read_root():
+    return {"message": "Hello, World!"}
+
+# 处理健康检查请求
+@router.get("/__engine/1/ping")
+def health_check():
+    return {"status": "ok"}
