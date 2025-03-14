@@ -1,1 +1,1 @@
-web: uvicorn main:app --host 0.0.0.0 --port $LEANCLOUD_APP_PORT
+web: uvicorn main:app --host 0.0.0.0 --port $LC_APP_PORT
