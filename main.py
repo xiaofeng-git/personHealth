@@ -82,6 +82,11 @@ if __name__ == "__main__":
     log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    
+    # 打印所有环境变量
+	print("Environment Variables:")
+	for key, value in os.environ.items():
+	    print(f"{key}: {value}")
     port = int(os.environ.get('LEANCLOUD_APP_PORT', 8000))
     print(f"LEANCLOUD_APP_PORT: {port}")  # 打印端口号
     uvicorn.run(
