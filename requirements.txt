@@ -13,4 +13,4 @@ aiosqlite
 aiohttp
 Flask==2.0.1
 Werkzeug==2.0.3
-leancloud
+leancloud==2.9.4
