@@ -87,12 +87,12 @@ if __name__ == "__main__":
     #print("Environment Variables:")
     #for key, value in os.environ.items():
     #    print(f"{key}: {value}")
-    port = int(os.environ.get('LC_APP_PORT', 8000))
-    print(f"LC_APP_PORT: {port}")  # 打印端口号
+    #port = int(os.environ.get('LC_APP_PORT', 8000))
+    #print(f"LC_APP_PORT: {port}")  # 打印端口号
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=port,
+        port=8000,
         log_level="info",
         log_config=log_config
     ) 
