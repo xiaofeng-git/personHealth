@@ -7,7 +7,7 @@ import os
 
 import leancloud
 
-from main import app
+from app import app
 from cloud import engine
 
 APP_ID = os.environ['LEANCLOUD_APP_ID']
@@ -22,7 +22,7 @@ leancloud.use_master_key(False)
 # Uncomment the following line to redirect HTTP requests to HTTPS.
 # app = leancloud.HttpsRedirectMiddleware(app)
 app = engine.wrap(app)
-application = main
+application = app
 
 if __name__ == '__main__':
     from gevent.pywsgi import WSGIServer
