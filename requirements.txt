@@ -11,6 +11,6 @@ python-jose[cryptography]
 passlib[bcrypt]
 aiosqlite
 aiohttp
-Flask==2.0.1
-Werkzeug==2.0.3
+Flask>=2.0.1
+Werkzeug>=2.0.3
 leancloud==2.9.4
