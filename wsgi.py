@@ -7,7 +7,7 @@ import os
 
 import leancloud
 
-from app import app
+from main import app
 from cloud import engine
 
 APP_ID = os.environ['LEANCLOUD_APP_ID']
