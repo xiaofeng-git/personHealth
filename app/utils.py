@@ -78,23 +78,46 @@ async def get_wx_session(code: str):
         return None
 
 def create_token(user_id: int, session_key: str) -> str:
-    """创建JWT token"""
-    expire = datetime.utcnow() + timedelta(days=JWT_EXPIRE_DAYS)
-    to_encode = {
-        "user_id": user_id,
-        "session_key": session_key,
-        "exp": expire
-    }
-    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    try:
+        # 使用更简单的 payload 结构
+        payload = {
+            'user_id': user_id,
+            'exp': datetime.utcnow() + timedelta(days=30)  # 30天过期
+        }
+        
+        # 使用 HS256 算法，它对环境要求较低
+        token = jwt.encode(
+            payload,
+            os.getenv('JWT_SECRET', 'your-secret-key'),
+            algorithm='HS256'
+        )
+        
+        # 处理 PyJWT 新旧版本的兼容性
+        if isinstance(token, bytes):
+            return token.decode('utf-8')
+        return token
+        
+    except Exception as e:
+        api_logger.error(f"生成token失败: {str(e)}")
+        return None
 
 def verify_token(token: str) -> dict:
-    """验证JWT token"""
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        # 使用相同的密钥和算法进行解码
+        payload = jwt.decode(
+            token,
+            os.getenv('JWT_SECRET', 'your-secret-key'),
+            algorithms=['HS256']
+        )
         return payload
     except jwt.ExpiredSignatureError:
+        api_logger.error("Token已过期")
         return None
-    except jwt.JWTError:
+    except jwt.InvalidTokenError as e:
+        api_logger.error(f"无效的token: {str(e)}")
+        return None
+    except Exception as e:
+        api_logger.error(f"验证token失败: {str(e)}")
         return None
 
 async def analyze_food_image_openai(image_content: bytes) -> str:
