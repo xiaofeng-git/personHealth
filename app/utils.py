@@ -76,48 +76,58 @@ async def get_wx_session(code: str):
     except Exception as e:
         api_logger.exception(f"获取微信session失败: {str(e)}")
         return None
-
 def create_token(user_id: int, session_key: str) -> str:
     try:
-        # 使用更简单的 payload 结构
+        api_logger.info(f"开始创建token，用户ID: {user_id}")
+        if not user_id:
+            api_logger.error("用户ID为空")
+            return None
+            
+        if not JWT_SECRET:
+            api_logger.error("JWT_SECRET未设置")
+            return None
+            
+        # 设置token过期时间为30天
+        expire_days = int(os.getenv("JWT_EXPIRE_DAYS", "30"))
+        expire = datetime.utcnow() + timedelta(days=expire_days)
+        
+        # 创建payload
         payload = {
-            'user_id': user_id,
-            'exp': datetime.utcnow() + timedelta(days=30)  # 30天过期
+            "user_id": user_id,
+            "exp": expire,
+            "iat": datetime.utcnow()
         }
         
-        # 使用 HS256 算法，它对环境要求较低
-        token = jwt.encode(
-            payload,
-            os.getenv('JWT_SECRET', 'your-secret-key'),
-            algorithm='HS256'
-        )
-        
-        # 处理 PyJWT 新旧版本的兼容性
-        if isinstance(token, bytes):
-            return token.decode('utf-8')
+        # 生成token
+        token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+        api_logger.info(f"token创建成功: {token[:10]}...")  # 只记录token的前10个字符
         return token
-        
     except Exception as e:
-        api_logger.error(f"生成token失败: {str(e)}")
+        api_logger.exception(f"创建token时发生错误: {str(e)}")
         return None
-
 def verify_token(token: str) -> dict:
     try:
-        # 使用相同的密钥和算法进行解码
-        payload = jwt.decode(
-            token,
-            os.getenv('JWT_SECRET', 'your-secret-key'),
-            algorithms=['HS256']
-        )
-        return payload
-    except jwt.ExpiredSignatureError:
-        api_logger.error("Token已过期")
-        return None
-    except jwt.InvalidTokenError as e:
-        api_logger.error(f"无效的token: {str(e)}")
-        return None
+        api_logger.info(f"开始验证token: {token[:10]}...")  # 只记录token的前10个字符
+        if not token:
+            api_logger.warning("token为空")
+            return None
+            
+        if not JWT_SECRET:
+            api_logger.error("JWT_SECRET未设置")
+            return None
+            
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            api_logger.info(f"token验证成功，payload: {payload}")
+            return payload
+        except jwt.ExpiredSignatureError:
+            api_logger.warning("token已过期")
+            return None
+        except jwt.InvalidTokenError as e:
+            api_logger.warning(f"token无效: {str(e)}")
+            return None
     except Exception as e:
-        api_logger.error(f"验证token失败: {str(e)}")
+        api_logger.exception(f"验证token时发生错误: {str(e)}")
         return None
 
 async def analyze_food_image_openai(image_content: bytes) -> str:
@@ -229,27 +239,59 @@ def extract_number(content: str, key: str) -> float:
         return float(re.search(r'\d+', value).group())
     except:
         return 0
-
 def get_current_user_id(request: Request = None):
     try:
-        # 从请求头获取token
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            api_logger.error("未找到Authorization请求头或格式错误")
+        # 防止 request 为 None
+        if request is None:
+            api_logger.error("请求对象为None")
             return None
+            
+        # 从请求头获取token
+        auth_header = request.headers.get("Authorization", "")
+        api_logger.info(f"收到的Authorization头: {auth_header}")  # 添加日志
         
-        token = auth_header.split(" ")[1]
+        if not auth_header or not auth_header.startswith("Bearer "):
+            api_logger.warning(f"未找到Authorization请求头或格式错误: {auth_header}")
+            # 尝试从cookie获取
+            try:
+                token = request.cookies.get("token", "")
+                api_logger.info(f"从cookie获取token: {token}")  # 添加日志
+            except Exception as e:
+                token = ""
+                api_logger.error(f"从cookie获取token时出错: {str(e)}")
+                
+            if not token:
+                # 尝试从query参数获取
+                try:
+                    token = request.query_params.get("token", "")
+                    api_logger.info(f"从query参数获取token: {token}")  # 添加日志
+                except Exception as e:
+                    token = ""
+                    api_logger.error(f"从query参数获取token时出错: {str(e)}")
+                    
+            if not token:
+                api_logger.warning("未能找到有效的token")
+                return None
+        else:
+            token = auth_header.split(" ")[1]
+            
+        # 验证token
+        if not token:
+            api_logger.warning("token为空")
+            return None
+            
         payload = verify_token(token)
         if not payload:
-            api_logger.error("Token验证失败")
+            api_logger.warning("token验证失败")
             return None
             
         user_id = payload.get("user_id")
         if not user_id:
-            api_logger.error("Token中未找到user_id")
+            api_logger.warning("未找到用户ID")
             return None
             
+        api_logger.info(f"成功获取用户ID: {user_id}")  # 添加日志
         return user_id
     except Exception as e:
-        api_logger.error(f"获取用户ID失败: {str(e)}")
-        return None 
+        api_logger.exception(f"获取用户ID时发生错误: {str(e)}")
+        return None

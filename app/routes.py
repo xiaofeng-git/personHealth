@@ -131,31 +131,50 @@ async def analyze_food(request: Request, data: Dict = Body(...), db: Session = D
             "success": False,
             "error": "服务器内部错误"
         }
-
 @router.get("/food-records")
-async def get_food_records(db: Session = Depends(get_db)):
+async def get_food_records(request: Request, db: Session = Depends(get_db)):
     try:
-        records = db.query(FoodRecord).order_by(
-            FoodRecord.created_at.desc()
-        ).all()
+        # 获取用户ID
+        user_id = get_current_user_id(request)
         
+        # 如果没有用户ID，使用默认测试用户
+        if user_id is None:
+            api_logger.warning("未找到用户ID，使用测试用户")
+            # 查找或创建测试用户
+            test_user = db.query(User).filter(User.openid == "test_user").first()
+            if not test_user:
+                test_user = User(openid="test_user")
+                db.add(test_user)
+                db.commit()
+                db.refresh(test_user)
+                api_logger.info(f"已创建测试用户: {test_user.id}")
+            user_id = test_user.id
+            
+        # 获取该用户的所有食物记录
+        records = db.query(FoodRecord).filter(FoodRecord.user_id == user_id).all()
+        
+        # 返回记录
         return {
             "success": True,
-            "data": [{
-                "id": r.id,
-                "food_name": r.food_name,
-                "meal_type": r.meal_type.value,
-                "calories": r.calories,
-                "protein": r.protein,
-                "carbs": r.carbs,
-                "fat": r.fat,
-                "image_url": r.image_url,
-                "created_at": r.created_at.isoformat()
-            } for r in records]
+            "data": [
+                {
+                    "id": record.id,
+                    "user_id": record.user_id,
+                    "food_name": record.food_name,
+                    "meal_type": record.meal_type.value if record.meal_type else None,
+                    "calories": record.calories,
+                    "protein": record.protein,
+                    "carbs": record.carbs,
+                    "fat": record.fat,
+                    "image_url": record.image_url,
+                    "created_at": record.created_at.isoformat()
+                }
+                for record in records
+            ]
         }
     except Exception as e:
-        print(f"获取食物记录失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        api_logger.exception(f"获取食物记录失败: {str(e)}")
+        return {"success": False, "error": str(e)}
 
 @router.post("/food-records")
 async def create_food_record(data: dict, db: Session = Depends(get_db)):
@@ -734,13 +753,38 @@ async def login(data: dict, db: Session = Depends(get_db)):
         api_logger.info(f"登录请求:session_key: {session_key}")
         # 查找或创建用户
         user = db.query(User).filter(User.openid == openid).first()
+        new_user_created = False
         if not user:
             user = User(openid=openid)
             db.add(user)
             db.commit()
             db.refresh(user)
+            new_user_created = True
+            api_logger.info(f"新用户创建成功，ID: {user.id}")
+        
 
         api_logger.info(f"查找或创建用户成功:user: {user.nickname}")
+        # 如果是新用户，为其创建默认的用户目标
+        if new_user_created:
+            try:
+                user_goal = UserGoal(
+                    user_id=user.id,
+                    # 默认营养目标
+                    calories=2000.0,
+                    protein=60.0,
+                    carbs=250.0,
+                    fat=70.0,
+                    # 默认运动目标
+                    exercise_frequency=3,
+                    exercise_duration=30,
+                    exercise_calories=300.0
+                )
+                db.add(user_goal)
+                db.commit()
+                api_logger.info(f"为用户 {user.id} 创建了默认目标设置")
+            except Exception as e:
+                api_logger.error(f"创建默认用户目标失败: {str(e)}")
+                # 继续执行，不中断登录流程
         # 生成token
         token = create_token(user.id, session_key)
 
