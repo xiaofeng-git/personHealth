@@ -730,6 +730,8 @@ async def login(data: dict, db: Session = Depends(get_db)):
         openid = wx_session["openid"]
         session_key = wx_session["session_key"]
 
+        api_logger.info(f"登录请求:openid: {openid}")
+        api_logger.info(f"登录请求:session_key: {session_key}")
         # 查找或创建用户
         user = db.query(User).filter(User.openid == openid).first()
         if not user:
@@ -738,6 +740,7 @@ async def login(data: dict, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(user)
 
+        api_logger.info(f"查找或创建用户成功:user: {user.nickname}")
         # 生成token
         token = create_token(user.id, session_key)
 
