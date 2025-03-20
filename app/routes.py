@@ -137,8 +137,11 @@ async def get_food_records(request: Request, db: Session = Depends(get_db)):
         # 获取用户ID
         user_id = get_current_user_id(request)
         
+        today = datetime.utcnow().date()
         # 获取该用户的所有食物记录
-        records = db.query(FoodRecord).filter(FoodRecord.user_id == user_id).all()
+        records = db.query(FoodRecord).filter(FoodRecord.user_id == user_id).filter(
+            func.date(FoodRecord.created_at) == today
+        ).all()
         
         # 返回记录
         return {

@@ -81,7 +81,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     ai_api_calls = Column(Integer, default=0)
-    max_ai_api_calls = Column(Integer, default=100)  # 每个用户默认100次调用限制
+    max_ai_api_calls = Column(Integer, default=3)  # 每个用户默认100次调用限制
     last_api_reset = Column(DateTime, default=datetime.utcnow)  # 上次重置时间
 
     # 关系

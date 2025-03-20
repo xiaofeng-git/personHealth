@@ -37,6 +37,7 @@ def init_test_data(db: Session):
         db.rollback()
 
 def reset_test_user_calls(db: Session):
+    from .models import User  # 避免循环导
     try:
         test_user = db.query(User).filter(User.openid == "test_user").first()
         if test_user:
