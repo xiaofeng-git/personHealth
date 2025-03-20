@@ -137,19 +137,6 @@ async def get_food_records(request: Request, db: Session = Depends(get_db)):
         # 获取用户ID
         user_id = get_current_user_id(request)
         
-        # 如果没有用户ID，使用默认测试用户
-        if user_id is None:
-            api_logger.warning("未找到用户ID，使用测试用户")
-            # 查找或创建测试用户
-            test_user = db.query(User).filter(User.openid == "test_user").first()
-            if not test_user:
-                test_user = User(openid="test_user")
-                db.add(test_user)
-                db.commit()
-                db.refresh(test_user)
-                api_logger.info(f"已创建测试用户: {test_user.id}")
-            user_id = test_user.id
-            
         # 获取该用户的所有食物记录
         records = db.query(FoodRecord).filter(FoodRecord.user_id == user_id).all()
         
@@ -161,6 +148,7 @@ async def get_food_records(request: Request, db: Session = Depends(get_db)):
                     "id": record.id,
                     "user_id": record.user_id,
                     "food_name": record.food_name,
+                    "meal_type_value": record.meal_type if record.meal_type else None,
                     "meal_type": record.meal_type.value if record.meal_type else None,
                     "calories": record.calories,
                     "protein": record.protein,
@@ -177,8 +165,13 @@ async def get_food_records(request: Request, db: Session = Depends(get_db)):
         return {"success": False, "error": str(e)}
 
 @router.post("/food-records")
-async def create_food_record(data: dict, db: Session = Depends(get_db)):
+async def create_food_record(request: Request, data: dict, db: Session = Depends(get_db)):
     try:
+        user_id = get_current_user_id(request)
+        if not user_id:
+            api_logger.error("更新目标失败：未找到用户ID")
+            return {"success": False, "error": "未找到用户ID"}
+        
         # 创建新记录
         db_record = FoodRecord(
             food_name=data.get("food_name", ""),
@@ -187,6 +180,7 @@ async def create_food_record(data: dict, db: Session = Depends(get_db)):
             protein=float(data.get("protein", 0)),
             carbs=float(data.get("carbs", 0)),
             fat=float(data.get("fat", 0)),
+            user_id=user_id,
             image_url=data.get("image_url")
         )
         
@@ -306,9 +300,12 @@ async def get_recent_activities(db: Session = Depends(get_db)):
         }
 
 @router.get("/exercise-records")
-async def get_exercise_records(db: Session = Depends(get_db)):
+async def get_exercise_records(request: Request, db: Session = Depends(get_db)):
+    # 获取用户ID
+    user_id = get_current_user_id(request)
+        
     try:
-        records = db.query(ExerciseRecord).order_by(
+        records = db.query(ExerciseRecord).filter(ExerciseRecord.user_id == user_id).order_by(
             ExerciseRecord.created_at.desc()
         ).all()
         
@@ -329,12 +326,18 @@ async def get_exercise_records(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/exercise-records")
-async def add_exercise_record(data: dict, db: Session = Depends(get_db)):
+async def add_exercise_record(request: Request, data: dict, db: Session = Depends(get_db)):
     try:
+        user_id = get_current_user_id(request)
+        if not user_id:
+            api_logger.error("更新目标失败：未找到用户ID")
+            return {"success": False, "error": "未找到用户ID"}
+        
         exercise = ExerciseRecord(
             type=data["type"],
             duration=data["duration"],
-            calories=data["calories"]
+            calories=data["calories"],
+            user_id=user_id
         )
         db.add(exercise)
         db.commit()
@@ -678,10 +681,10 @@ async def get_user_goals(request: Request, db: Session = Depends(get_db)):
         return {"success": False, "error": f"获取用户目标失败: {str(e)}"}
 
 @router.post("/user-goals")
-async def update_user_goals(data: dict, db: Session = Depends(get_db)):
+async def update_user_goals(request: Request, data: dict, db: Session = Depends(get_db)):
     try:
         # 获取用户ID
-        user_id = get_current_user_id()
+        user_id = get_current_user_id(request)
         if not user_id:
             api_logger.error("更新目标失败：未找到用户ID")
             return {"success": False, "error": "未找到用户ID"}
@@ -732,6 +735,7 @@ async def update_user_goals(data: dict, db: Session = Depends(get_db)):
 
 @router.post("/login")
 async def login(data: dict, db: Session = Depends(get_db)):
+    print("开始登陆...")
     try:
         code = data.get("code")
         if not code:
@@ -827,13 +831,16 @@ async def get_ai_api_status(db: Session = Depends(get_db)):
         user = db.query(User).first()
         if not user:
             return {
-                "success": False,
-                "error": "用户不存在"
+                "data": {
+                    "success": False,
+                    "error": "用户不存在"
+                }
             }
         
         return {
             "success": True,
             "data": {
+                "success": True,
                 "used_calls": user.ai_api_calls,
                 "max_calls": user.max_ai_api_calls,
                 "remaining_calls": user.max_ai_api_calls - user.ai_api_calls
@@ -842,8 +849,10 @@ async def get_ai_api_status(db: Session = Depends(get_db)):
     except Exception as e:
         api_logger.error(f"获取API使用状态失败: {str(e)}")
         return {
-            "success": False,
-            "error": "获取使用状态失败"
+            "data": {
+                "success": False,
+                "error": "获取API使用状态失败"
+            }
         }
 # 处理根路径请求
 @router.get("/")
