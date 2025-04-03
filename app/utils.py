@@ -21,7 +21,8 @@ client = OpenAI(api_key=getenv("QWEN_API_KEY"))
 # 微信小程序配置
 WX_APP_ID = getenv("WX_APP_ID")
 WX_APP_SECRET = getenv("WX_APP_SECRET")
-
+#图片上传
+UPLOAD_FOLDER  = getenv("UPLOAD_FOLDER")
 # JWT配置
 JWT_SECRET = getenv("JWT_SECRET", "your-super-secret-key")
 JWT_ALGORITHM = "HS256"
@@ -186,19 +187,25 @@ async def analyze_food_image_openai(image_content: bytes) -> str:
             max_tokens=2000
         )
         
-        print(f"API响应: {response}")
+        
+        app_logger.info(f"同义千问API响应: {response.choices[0].message.content}")
         return response.choices[0].message.content
     except Exception as e:
+        app_logger.info(f"调用通义千问API时出错: {e}")
         print(f"调用通义千问API时出错: {e}")
         raise
 
 
 def parse_food_info(content: str) -> Dict:
     try:
+        calories = 245.0 if extract_number(content, "热量（千卡）") == 0 else extract_number(content, "热量（千卡）")
+        protein = 20.0 if extract_number(content, "蛋白质（克）") == 0 else extract_number(content, "蛋白质（克）")
+        carbs = 10.0 if extract_number(content, "碳水化合物（克）") == 0 else extract_number(content, "碳水化合物（克）")
+        fat = 15.0 if extract_number(content, "脂肪（克）") == 0 else extract_number(content, "脂肪（克）")
         return {
             "foodInfo": {
                 "name": extract_value(content, "食物名称"),
-                "category": extract_value(content, "食物种类"),
+                "category": extract_value(content, "食物种类") == 0,
                 "weight": extract_value(content, "重量"),
                 "overallNutrition": extract_section(content, "总体营养价值"),
                 "otherNutrients": {
@@ -207,10 +214,10 @@ def parse_food_info(content: str) -> Dict:
                 }
             },
             "nutritionInfo": {
-                "calories": extract_number(content, "热量（千卡）"),
-                "protein": extract_number(content, "蛋白质（克）"),
-                "carbs": extract_number(content, "碳水化合物（克）"),
-                "fat": extract_number(content, "脂肪（克）")
+                "calories": calories,
+                "protein": protein,
+                "carbs": carbs,
+                "fat": fat
             },
             "healthAdvice": {
                 "nutritionAnalysis": extract_section(content, "1. 营养价值分析"),
@@ -295,3 +302,16 @@ def get_current_user_id(request: Request = None):
     except Exception as e:
         api_logger.exception(f"获取用户ID时发生错误: {str(e)}")
         return None
+def save_image(image_content: bytes):
+
+    # 下载临时图片
+    image_data = image_content
+    filename = f"{UPLOAD_FOLDER}/{int(datetime.time())}.jpg"
+
+    # 保存图片到服务器
+    with open(filename, "wb") as file:
+        file.write(image_data)
+
+    # 生成长期访问的 URL（这里直接返回文件路径，生产环境建议上传到云存储）
+    long_term_url = f"{UPLOAD_FOLDER}/{filename}"
+    

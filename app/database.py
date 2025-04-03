@@ -35,15 +35,3 @@ def init_test_data(db: Session):
     except Exception as e:
         print(f"初始化测试用户失败: {str(e)}")
         db.rollback()
-
-def reset_test_user_calls(db: Session):
-    from .models import User  # 避免循环导
-    try:
-        test_user = db.query(User).filter(User.openid == "test_user").first()
-        if test_user:
-            test_user.ai_api_calls = 0
-            db.commit()
-            print("测试用户调用次数已重置")
-    except Exception as e:
-        print(f"重置调用次数失败: {str(e)}")
-        db.rollback() 

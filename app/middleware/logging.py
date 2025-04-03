@@ -67,14 +67,6 @@ async def log_request_middleware(request: Request, call_next) -> Response:
             request._receive = receive
             body_str = format_json(body)
 
-        logger.info(f"""
-Request #{request_id}:
-  Method: {request.method}
-  URL: {request.url}
-  Client: {request.client.host}:{request.client.port}
-  Headers: {format_headers(dict(request.headers))}
-  Body: {body_str}
-""")
     except Exception as e:
         logger.error(f"Error logging request: {str(e)}\n{traceback.format_exc()}")
 
@@ -95,13 +87,7 @@ Request #{request_id}:
             response_str = f"<binary response: {len(response_content)} bytes>"
         
         log_level = logging.ERROR if response.status_code >= 400 else logging.INFO
-        logger.log(log_level, f"""
-Response #{request_id}:
-  Status: {response.status_code}
-  Process Time: {process_time:.2f}s
-  Headers: {format_headers(dict(response.headers))}
-  Body: {response_str}
-""")
+
 
         return Response(
             content=response_content,
@@ -112,11 +98,5 @@ Response #{request_id}:
         
     except Exception as e:
         process_time = time.time() - start_time
-        logger.error(f"""
-Error #{request_id}:
-  URL: {request.method} {request.url}
-  Process Time: {process_time:.2f}s
-  Error: {str(e)}
-  Traceback: {traceback.format_exc()}
-""")
+
         raise 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, Boolean
@@ -11,7 +11,8 @@ from .db_base import Base, engine  # 从 db_base.py 导入 Base 和 engine
 
 # 加载环境变量
 load_dotenv()
-
+def beijing_time():
+    return datetime.utcnow() + timedelta(hours=8)
 # Pydantic models (用于API请求和响应)
 class NutritionInfo(BaseModel):
     calories: float
@@ -78,17 +79,18 @@ class User(Base):
     openid = Column(String, unique=True, index=True)
     nickname = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=beijing_time)
+    updated_at = Column(DateTime(timezone=True), onupdate=beijing_time)
     ai_api_calls = Column(Integer, default=0)
-    max_ai_api_calls = Column(Integer, default=3)  # 每个用户默认100次调用限制
-    last_api_reset = Column(DateTime, default=datetime.utcnow)  # 上次重置时间
+    max_ai_api_calls = Column(Integer, default=3)  # 每个用户默认3次调用限制
+    last_api_reset = Column(DateTime, default=beijing_time)  # 上次重置时间
 
     # 关系
     achievements = relationship("Achievement", back_populates="user")
     food_records = relationship("FoodRecord", back_populates="user")
     exercise_records = relationship("ExerciseRecord", back_populates="user")
     goals = relationship("UserGoal", back_populates="user")
+    order = relationship("UserOrder", back_populates="user")
 
 class FoodRecord(Base):
     __tablename__ = "food_records"
@@ -102,7 +104,7 @@ class FoodRecord(Base):
     carbs = Column(Float, default=0)
     fat = Column(Float, default=0)
     image_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=beijing_time)
     
     # 关联关系
     user = relationship("User", back_populates="food_records")
@@ -115,7 +117,7 @@ class ExerciseRecord(Base):
     type = Column(String)
     duration = Column(Integer)  # 分钟
     calories = Column(Float)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=beijing_time)
     
     # 关联关系
     user = relationship("User", back_populates="exercise_records")
@@ -151,7 +153,7 @@ class Achievement(Base):
     target = Column(Integer)  # 目标值
     achieved = Column(Boolean, default=False)  # 是否已获得
     achieved_at = Column(DateTime)  # 获得时间
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=beijing_time)
     
     # 关联关系
     user = relationship("User", back_populates="achievements")
@@ -173,12 +175,26 @@ class UserGoal(Base):
     exercise_duration = Column(Integer, default=0)
     exercise_calories = Column(Float, default=0.0)
     
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=beijing_time)
+    updated_at = Column(DateTime, default=beijing_time, onupdate=beijing_time)
     
     # 关联关系
     user = relationship("User", back_populates="goals")
 
+class UserOrder(Base):
+    __tablename__ = "user_order"
+    id = Column(Integer, primary_key=True)
+    order_id = Column(String(250))
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    plan_id = Column(String(50)) 
+    plan_name = Column(String(100))
+    price = Column(Float, default=0.0)
+    status = Column(String(50)) 
+    count = Column(Integer, default=0)
+    created_at= Column(DateTime, default=beijing_time)
+    openid= Column(String)   # 从小程序端传递用户的openid
+      # 关联关系
+    user = relationship("User", back_populates="order")
 # 数据库初始化
 def init_db():
     if getenv("RESET_DATABASE", "false").lower() == "true":

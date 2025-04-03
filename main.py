@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.middleware.logging import log_request_middleware
 from app.config.logging import setup_logging
+from datetime import datetime, timedelta
 import logging
 import traceback
 import uvicorn
@@ -12,7 +13,6 @@ import os
 from app.models import init_db  # 只导入 init_db
 from app.database import SessionLocal, init_test_data, get_db  # 从 database.py 导入 SessionLocal, init_test_data, get_db
 from app.init_met_data import init_met_data
-
 # 加载环境变量
 load_dotenv()
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
-    
+
     # 打印所有环境变量
     #print("Environment Variables:")
     #for key, value in os.environ.items():
