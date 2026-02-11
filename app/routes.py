@@ -25,7 +25,7 @@ import base64
 from flask import jsonify
 from sqlalchemy import func
 from os import getenv
-from app.wxpayForMe import create_order_pay, wechatpay_callback
+#from app.wxpayForMe import create_order_pay, wechatpay_callback
 
 router = APIRouter()
 
@@ -118,7 +118,7 @@ async def get_food_records(request: Request, db: Session = Depends(get_db)):
         # 获取该用户的所有食物记录
         records = db.query(FoodRecord).filter(FoodRecord.user_id == user_id).all()
    
-        api_logger.info(f"/today-meals 获取所有食物记录条数: {len(records)}")
+        api_logger.info(f"/food-records 获取所有食物记录条数: {len(records)}")
         # 返回记录
         return {
             "success": True,
@@ -992,7 +992,15 @@ async def create_order(request: Request, data: dict, db: Session = Depends(get_d
         db.commit()
         db.refresh(db_record)
         print(f"设置支付参数")
-        return create_order_pay(db_record)
+        return {
+            "success": True,
+            "data": {
+                "order_id": db_record.order_id,
+                "price": db_record.price,
+                "count": db_record.count
+            }
+        }
+        #return create_order_pay(db_record)
     except Exception as e:
         print(f"创建订单失败: {str(e)}")
         raise HTTPException(status_code=500, detail="创建订单失败")
@@ -1003,17 +1011,18 @@ async def wxpay_notify(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user_id(request)
 
     db_record = db.query(UserOrder).filter(UserOrder.user_id == user_id).order_by(UserOrder.created_at.desc).first()
-    decrypted_data = wechatpay_callback(request)
+    #decrypted_data = wechatpay_callback(request)
     db_record.status = "SUCCESS"
     db.commit()
     
     # 获取订单号 & 支付状态
-    out_trade_no = decrypted_data["out_trade_no"]
-    trade_state = decrypted_data["trade_state"]        
-    if trade_state == "SUCCESS":
-        print(f"🎉 订单 {out_trade_no} 支付成功！")
-        # TODO: 更新数据库订单状态
-    else:
-        print(f"⚠️ 订单 {out_trade_no} 支付未成功，状态: {trade_state}")
-
-    return {"code": "SUCCESS", "message": "OK"}
+#    out_trade_no = decrypted_data["out_trade_no"]
+#    trade_state = decrypted_data["trade_state"]        
+#    if trade_state == "SUCCESS":
+#        print(f"🎉 订单 {out_trade_no} 支付成功！")
+#        # TODO: 更新数据库订单状态
+#    else:
+#        print(f"⚠️ 订单 {out_trade_no} 支付未成功，状态: {trade_state}")
+    print(f"⚠️ 订单支付未成功，状态: 模拟回调成功")
+    #return {"code": "SUCCESS", "message": "OK"}
+    return {"code": "ERROR", "message": "OK"}
